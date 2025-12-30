@@ -1,5 +1,6 @@
-import '../core/card.dart';
+import '../core/attack_card.dart';
 import '../core/enums.dart';
+import '../model/attack_resolution.dart';
 
 class SwiftComboEngine {
   bool _comboUsedThisTurn = false;
@@ -12,16 +13,16 @@ class SwiftComboEngine {
   }
 
   /// Validate if an attack sequence is legal
-  void validateAttackSequence(List<CardModel> attackCards) {
+  void validateAttackSequence(List<AttackCard> attackCards) {
     if (attackCards.isEmpty) {
       throw Exception('No attack cards provided');
     }
 
     final swiftCards =
-        attackCards.where((c) => c.attackType == AttackType.swift).toList();
+        attackCards.where((c) => c.speed == AttackType.swift).toList();
 
     final nonSwiftCards =
-        attackCards.where((c) => c.attackType != AttackType.swift).toList();
+        attackCards.where((c) => c.speed != AttackType.swift).toList();
 
     if (nonSwiftCards.length > 1) {
       throw Exception('Only one Normal or Heavy attack allowed per turn');
@@ -39,15 +40,15 @@ class SwiftComboEngine {
   }
 
   /// Resolve Swift logic and return attack resolution
-  AttackResolution resolveAttack(List<CardModel> attackCards) {
+  AttackResolution resolveAttack(List<AttackCard> attackCards) {
     validateAttackSequence(attackCards);
 
     final int swiftCount =
-        attackCards.where((c) => c.attackType == AttackType.swift).length;
+        attackCards.where((c) => c.speed == AttackType.swift).length;
 
     // Guaranteed to return a CardModel
-    final CardModel baseAttack = attackCards.firstWhere(
-      (c) => c.attackType != AttackType.swift,
+    final AttackCard baseAttack = attackCards.firstWhere(
+      (c) => c.speed != AttackType.swift,
       orElse: () => attackCards.first,
     );
 
@@ -55,33 +56,25 @@ class SwiftComboEngine {
 
     // Swift + Normal / Heavy combo
     if (swiftCount > 0 &&
-        baseAttack.attackType != AttackType.swift &&
+        baseAttack.speed != AttackType.swift &&
         !_comboUsedThisTurn) {
       comboTriggered = true;
       _comboUsedThisTurn = true;
     }
 
     // Mark non-swift usage
-    if (baseAttack.attackType != AttackType.swift) {
+    if (baseAttack.speed != AttackType.swift) {
       _nonSwiftAttackUsed = true;
     }
 
     return AttackResolution(
-      baseAttack: baseAttack,
-      swiftCount: swiftCount,
-      comboTriggered: comboTriggered,
+      attackCard: baseAttack,
+      isCombo: comboTriggered,
+      wasEvaded: false,
+      damageDealt: 0,
+      counterDamageTaken: 0,
     );
   }
 }
 
-class AttackResolution {
-  final CardModel baseAttack;
-  final int swiftCount;
-  final bool comboTriggered;
 
-  AttackResolution({
-    required this.baseAttack,
-    required this.swiftCount,
-    required this.comboTriggered,
-  });
-}

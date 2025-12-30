@@ -1,5 +1,6 @@
 import '../core/hero.dart';
 import '../core/item.dart';
+import '../core/enums.dart';
 
 class ItemEngine {
   /// Use a consumable item
@@ -14,7 +15,7 @@ class ItemEngine {
 
     switch (item.effectType) {
       case ItemEffectType.heal:
-        target.hp += item.value;
+        target.heal(item.value);
         break;
 
       case ItemEffectType.cure:
@@ -24,6 +25,7 @@ class ItemEngine {
 
       case ItemEffectType.buff:
         // Buffs handled by skill/status engine later
+        // target.buffs.addAll(item.buffs);
         break;
     }
   }

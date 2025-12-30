@@ -1,11 +1,11 @@
 import '../core/reaction.dart';
-import '../core/card.dart';
+import '../core/attack_card.dart';
 import '../core/enums.dart';
 import '../model/reaction_result.dart';
 
 class ReactionEngine {
   ReactionResult resolveReaction({
-    required CardModel attackCard,
+    required AttackCard attackCard,
     required int baseDamage,
     ReactionCard? reaction,
     ReactionCard? counter,
@@ -24,7 +24,7 @@ class ReactionEngine {
 
     // 3️⃣ Shield
     if (reaction?.type == ReactionType.shield &&
-        attackCard.attackCategory == AttackCategory.magic) {
+        attackCard.category == AttackCategory.magic) {
       result.attackNegated = true;
     }
 
@@ -38,8 +38,8 @@ class ReactionEngine {
     return result;
   }
 
-  bool _isPhysical(CardModel card) {
-    return card.attackCategory == AttackCategory.melee ||
-           card.attackCategory == AttackCategory.range;
+  bool _isPhysical(AttackCard card) {
+    return card.category == AttackCategory.melee ||
+           card.category == AttackCategory.range;
   }
 }

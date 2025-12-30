@@ -30,7 +30,7 @@ class GameEngine {
     }
 
     for (var hero in activePlayer.heroes) {
-      hero.resetTurn();
+      hero.startTurn();
     }
   }
 
