@@ -61,3 +61,10 @@ enum ReactionType {
   counter,
 }
 
+enum JobClass {
+  melee,
+  ranged,
+  mage,
+  support,
+}
+

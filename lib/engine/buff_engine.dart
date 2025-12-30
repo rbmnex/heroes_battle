@@ -60,6 +60,7 @@ class BuffEngine {
   /// SWIFT MODIFIER
   /// =========================
 
+  // ✅ ADD THIS (used by Swift engine)
   static bool allowsExtraSwiftCombo(HeroModel hero) {
     return hero.buffs.any((b) => b.type == BuffType.swiftPlus);
   }

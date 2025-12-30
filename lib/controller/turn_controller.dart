@@ -1,6 +1,9 @@
 import '../core/hero.dart';
 import '../core/card.dart';
+import '../core/attack_card.dart';
 import '../core/enums.dart';
+import '../engine/attack_engine.dart';
+import '../engine/swift_combo_engine.dart';
 
 class TurnController {
   TurnPhase currentPhase = TurnPhase.draw;
@@ -8,6 +11,8 @@ class TurnController {
   final List<CardModel> drawPile;
   final List<CardModel> discardPile;
   final List<CardModel> hand;
+
+  final AttackEngine attackEngine = AttackEngine();
 
   TurnController({
     required this.drawPile,
@@ -68,16 +73,33 @@ class TurnController {
   }
 
   /// =========================
-  /// ACTION VALIDATION
+  /// ACTION PHASE (ATTACK ENTRY)
   /// =========================
 
-  bool canUseItem() {
-    return currentPhase == TurnPhase.item;
-  }
+  void performAttack({
+    required HeroModel attacker,
+    required HeroModel defender,
+    required AttackCard attackCard,
+  }) {
+    if (currentPhase != TurnPhase.action) {
+      throw Exception('Not in Action phase');
+    }
 
-  bool canAttack(HeroModel hero) {
-    return currentPhase == TurnPhase.action &&
-        hero.hasAttackedThisTurn == false;
+    final comboResult = SwiftComboEngine.validate(
+      hero: attacker,
+      attackCard: attackCard,
+    );
+
+    if (!comboResult.allowed) {
+      throw Exception(comboResult.reason);
+    }
+
+    attackEngine.performAttack(
+      attacker: attacker,
+      defender: defender,
+      attackCard: attackCard,
+      isCombo: comboResult.isCombo,
+    );
   }
 
   /// =========================
@@ -85,7 +107,6 @@ class TurnController {
   /// =========================
 
   void _handleEndPhase() {
-    // Discard all cards in hand (simple rule for now)
     discardPile.addAll(hand);
     hand.clear();
   }
@@ -95,6 +116,27 @@ class TurnController {
   /// =========================
 
   void resetHeroForNewTurn(HeroModel hero) {
-    hero.hasAttackedThisTurn = false;
+    hero
+      ..hasAttackedThisTurn = false
+      ..swiftUsedThisTurn = 0
+      ..comboUsedThisTurn = false;
+  }
+
+  /// Whether an item may be used in the current phase and there is at least
+  /// one item card in hand.
+  bool canUseItem() {
+    if (currentPhase != TurnPhase.item) return false;
+    return hand.any((c) => c.cardType == CardType.item);
+  }
+
+  /// Whether the provided hero can perform an attack in the current phase.
+  /// Checks phase, alive state, and that the hero hasn't already attacked.
+  bool canAttack(HeroModel hero) {
+    if (currentPhase != TurnPhase.action) return false;
+    if (!hero.canAct) return false;
+    if (hero.hasAttackedThisTurn) return false;
+    // Disallow attacking while stunned
+    if (hero.statusEffects.any((s) => s.type == StatusType.stun)) return false;
+    return true;
   }
 }

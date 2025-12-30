@@ -1,7 +1,7 @@
-import '../engine/turn_controller.dart';
-import '../core/hero.dart';
-import '../engine/attack_engine.dart';
-import '../engine/item_engine.dart';
+import 'package:heroes_battle/controller/turn_controller.dart';
+import 'package:heroes_battle/core/hero.dart';
+import 'package:heroes_battle/engine/attack_engine.dart';
+import 'package:heroes_battle/engine/item_engine.dart';
 
 class TurnFlow {
   void executeTurn(
@@ -32,6 +32,5 @@ class TurnFlow {
     // END
     turnController.nextPhase();
     turnController.resetHeroForNewTurn(hero);
-
   }
 }

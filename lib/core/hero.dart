@@ -1,6 +1,9 @@
+import 'item.dart';
+
 import '../model/status_effect.dart';
 import '../model/buff_effect.dart';
-import 'item.dart';
+import 'enums.dart';
+import 'skill.dart';
 
 class HeroModel {
   // =========================
@@ -8,7 +11,7 @@ class HeroModel {
   // =========================
   final String id;
   final String name;
-  final String jobClass;
+  final JobClass jobClass;
 
   // =========================
   // Health
@@ -19,13 +22,14 @@ class HeroModel {
   // =========================
   // Turn State
   // =========================
-  bool isDefeated = false;
-  bool isStunned = false;
-  bool hasAttackedThisTurn = false;
+  bool hasAttackedThisTurn;
+  int swiftUsedThisTurn;
+  bool comboUsedThisTurn;
 
-  // Swift / combo tracking
-  bool comboUsedThisTurn = false;
-  int swiftUsedThisTurn = 0;
+  /// =========================
+  /// HERO SKILLS
+  /// =========================
+  final List<Skill> skills;
 
   // =========================
   // Effects
@@ -44,7 +48,22 @@ class HeroModel {
     required this.name,
     required this.jobClass,
     required this.maxHp,
-  }) : currentHp = maxHp;
+    required this.skills,
+    List<StatusEffect>? statusEffects,
+    List<BuffEffect>? buffs,
+  })  : currentHp = maxHp,
+        hasAttackedThisTurn = false,
+        swiftUsedThisTurn = 0,
+        comboUsedThisTurn = false;
+
+   /// =========================
+  /// DERIVED STATE
+  /// =========================
+
+  bool get isDefeated => currentHp <= 0;
+
+  bool get canAct => !isDefeated;
+
 
   // =========================
   // Turn Helpers
@@ -60,26 +79,29 @@ class HeroModel {
     hasAttackedThisTurn = false;
   }
 
-  // =========================
-  // Health Helpers
-  // =========================
+  /// =========================
+  /// DAMAGE & HEALING
+  /// =========================
 
-  void receiveDamage(int damage) {
-    currentHp -= damage;
-    if (currentHp <= 0) {
-      currentHp = 0;
-      isDefeated = true;
-    }
+  void takeDamage(int amount) {
+    if (amount <= 0) return;
+    currentHp -= amount;
+    if (currentHp < 0) currentHp = 0;
   }
 
   void heal(int amount) {
-    if (isDefeated) return;
-
+    if (amount <= 0) return;
     currentHp += amount;
-    if (currentHp > maxHp) {
-      currentHp = maxHp;
-    }
+    if (currentHp > maxHp) currentHp = maxHp;
   }
 
- 
+ /// =========================
+ /// TURN RESET
+ /// =========================
+
+  void resetForNewTurn() {
+    hasAttackedThisTurn = false;
+    swiftUsedThisTurn = 0;
+    comboUsedThisTurn = false;
+  }
 }

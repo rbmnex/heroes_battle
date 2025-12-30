@@ -2,6 +2,7 @@ class ReactionResult {
   bool attackNegated;
   double damageMultiplier;
   int reflectedDamage;
+  
 
   ReactionResult({
     this.attackNegated = false,

@@ -3,7 +3,7 @@ import '../model/status_effect.dart';
 import '../core/enums.dart';
 
 
-class StatusEngine {
+class StatusEffectEngine {
   /// =========================
   /// APPLY STATUS
   /// =========================
@@ -74,4 +74,41 @@ class StatusEngine {
       return effect.duration <= 0;
     });
   }
+
+  // =========================
+  // DAMAGE MODIFIERS
+  // =========================
+
+  static int modifyOutgoingDamage(HeroModel hero, int damage) {
+    int modified = damage;
+
+    for (final status in hero.statusEffects) {
+      // Example future-proofing
+      // if (status.type == StatusType.weaken) {
+      //   modified -= status.value;
+      // }
+    }
+
+    return modified < 0 ? 0 : modified;
+  }
+
+  static int modifyIncomingDamage(HeroModel hero, int damage) {
+    int modified = damage;
+
+    for (final status in hero.statusEffects) {
+      // Example:
+      // if (status.type == StatusType.vulnerable) {
+      //   modified += status.value;
+      // }
+    }
+
+    return modified < 0 ? 0 : modified;
+  }
+
+  // =========================
+  // EXISTING PHASE METHODS
+  // =========================
+  // onTurnStart(hero)
+  // onHeroAction(hero)
+  // onTurnEnd(hero)
 }
