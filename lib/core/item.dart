@@ -1,13 +1,4 @@
-enum ItemType {
-  consumable,
-  equipment,
-}
-
-enum ItemEffectType {
-  heal,
-  cure,
-  buff,
-}
+import 'enums.dart';
 
 class ItemCard {
   final String id;

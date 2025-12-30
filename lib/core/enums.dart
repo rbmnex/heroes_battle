@@ -23,7 +23,41 @@ enum TargetType {
   area,
 }
 
+enum StatusType {
+  burn,      // HP loss each turn
+  bleed,    // HP loss when acting
+  stun,     // Skip action phase
+  shielded, // Temporary damage reduction
+}
+
+enum TurnPhase {
+  draw,
+  item,
+  action,
+  end,
+}
+
+enum BuffType {
+  attackUp,    // +X damage
+  defenseUp,   // reduce incoming damage
+  swiftPlus,   // extra Swift combo allowance
+}
+
 enum ItemType {
-  oneTime,
+  consumable,
   equipment,
 }
+
+enum ItemEffectType {
+  heal,
+  cure,
+  buff,
+}
+
+enum ReactionType {
+  block,
+  evade,
+  shield,
+  counter,
+}
+

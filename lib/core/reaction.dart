@@ -1,9 +1,4 @@
-enum ReactionType {
-  block,
-  evade,
-  shield,
-  counter,
-}
+import 'enums.dart';
 
 class ReactionCard {
   final String id;

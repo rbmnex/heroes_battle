@@ -1,7 +1,7 @@
 import '../core/reaction.dart';
 import '../core/card.dart';
 import '../core/enums.dart';
-import 'reaction_result.dart';
+import '../model/reaction_result.dart';
 
 class ReactionEngine {
   ReactionResult resolveReaction({
