@@ -43,6 +43,8 @@ class HeroModel {
   // final List<EquipmentCard> equipment = [];
   ItemCard? equippedItem;
 
+  bool isStunned;
+
   HeroModel({
     required this.id,
     required this.name,
@@ -54,7 +56,8 @@ class HeroModel {
   })  : currentHp = maxHp,
         hasAttackedThisTurn = false,
         swiftUsedThisTurn = 0,
-        comboUsedThisTurn = false;
+        comboUsedThisTurn = false,
+        isStunned = false;
 
    /// =========================
   /// DERIVED STATE

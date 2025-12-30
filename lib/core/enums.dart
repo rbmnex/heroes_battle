@@ -28,6 +28,8 @@ enum StatusType {
   bleed,    // HP loss when acting
   stun,     // Skip action phase
   shielded, // Temporary damage reduction
+  poison,   // HP loss each turn, cannot be cured
+  
 }
 
 enum TurnPhase {
