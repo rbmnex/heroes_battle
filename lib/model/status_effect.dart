@@ -10,4 +10,10 @@ class StatusEffect {
     required this.duration,
     this.value = 0,
   });
+
+  bool get isExpired => duration <= 0;
+
+  void tick() {
+    duration--;
+  }
 }

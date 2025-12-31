@@ -9,16 +9,14 @@ class AttackCard extends CardModel {
   final bool isMultiTarget;
 
   const AttackCard({
-    required String id,
-    required String name,
+    required super.id,
+    required super.name,
     required this.category,
     required this.speed,
     required this.baseDamage,
     this.isArea = false,
     this.isMultiTarget = false,
   }) : super(
-          id: id,
-          name: name,
           cardType: CardType.attack,
         );
 }

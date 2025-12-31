@@ -1,96 +1,148 @@
-import '../core/hero.dart';
-import '../core/attack_card.dart';
-import '../engine/buff_engine.dart';
-import '../engine/status_engine.dart';
-import '../engine/reaction_engine.dart';
-import '../model/attack_resolution.dart';
-import '../core/reaction.dart';
+
+
+import 'package:heroes_battle/core/attack_card.dart';
+import 'package:heroes_battle/core/enums.dart';
+import 'package:heroes_battle/core/hero.dart';
+import 'package:heroes_battle/engine/buff_engine.dart';
+import 'package:heroes_battle/engine/reaction_engine.dart';
+import 'package:heroes_battle/engine/status_engine.dart';
+import 'package:heroes_battle/model/attack_resolution.dart';
+import 'package:heroes_battle/model/reaction_result.dart';
 
 class AttackEngine {
   final ReactionEngine _reactionEngine = ReactionEngine();
+  final BuffEngine _buffEngine = BuffEngine();
+  final StatusEffectEngine _statusEffectEngine = StatusEffectEngine();
 
   AttackResolution performAttack({
     required HeroModel attacker,
     required HeroModel defender,
     required AttackCard attackCard,
     required bool isCombo,
-    ReactionCard? reaction,
-    ReactionCard? counter,
+    ReactionType? defenderReaction,
+    bool hasCounter = false,
   }) {
-    // =========================
-    // 1️⃣ Base Damage
-    // =========================
-    int damage = attackCard.baseDamage;
-
-    // =========================
-    // 2️⃣ Attacker Modifiers
-    // =========================
-    damage = BuffEngine.modifyOutgoingDamage(attacker, damage);
-    damage = StatusEffectEngine.modifyOutgoingDamage(attacker, damage);
-
-    // Save BASE damage for counter calculation
-    final int baseDamageForCounter = damage;
-
-    // =========================
-    // 3️⃣ Reaction Resolution
-    // =========================
-    final reactionResult = _reactionEngine.resolveReaction(
-      attackCard: attackCard,
-      baseDamage: baseDamageForCounter,
-      reaction: reaction,
-      counter: counter,
-    );
-
-    if (reactionResult.attackNegated) {
-      // Apply reflected damage even if negated
-      if (reactionResult.reflectedDamage > 0) {
-        attacker.takeDamage(reactionResult.reflectedDamage);
-      }
-
-      return AttackResolution(
-        attackCard: attackCard,
-        damageDealt: 0,
-        wasEvaded: true,
-        isCombo: isCombo,
-        counterDamageTaken: reactionResult.reflectedDamage,
-      );
+    if (attacker.isDefeated || defender.isDefeated) {
+      throw Exception('Invalid combatants');
     }
 
-    // Apply block multiplier
-    damage = (damage * reactionResult.damageMultiplier).round();
+    /// =========================
+    /// 1️⃣ BASE DAMAGE
+    /// =========================
+    int baseDamage = _calculateBaseDamage(attackCard);
 
-    // =========================
-    // 4️⃣ Defender Modifiers
-    // =========================
-    damage = StatusEffectEngine.modifyIncomingDamage(defender, damage);
+    /// =========================
+    /// 2️⃣ APPLY ATTACKER BUFFS
+    /// =========================
+    baseDamage = _buffEngine.modifyOutgoingDamage(
+      attacker: attacker,
+      baseDamage: baseDamage,
+      isCombo: isCombo,
+    );
 
-    final defenseMultiplier =
-        BuffEngine.modifyIncomingDamageMultiplier(defender);
-    damage = (damage * defenseMultiplier).round();
+    /// =========================
+    /// 3️⃣ RESOLVE REACTION
+    /// =========================
+    final ReactionResult reactionResult =
+        _reactionEngine.resolve(
+      defender: defender,
+      attackCard: attackCard,
+      baseDamage: baseDamage,
+      reaction: defenderReaction,
+      hasCounter: hasCounter,
+    );
 
-    // Clamp
-    if (damage < 0) damage = 0;
+    /// =========================
+    /// 4️⃣ DAMAGE NEGATION
+    /// =========================
+    int finalDamage = baseDamage;
 
-    // =========================
-    // 5️⃣ Apply Damage
-    // =========================
-    defender.takeDamage(damage);
+    if (reactionResult.attackNegated) {
+      finalDamage = 0;
+    }
 
+    /// =========================
+    /// 5️⃣ DAMAGE MULTIPLIER
+    /// =========================
+    finalDamage =
+        (finalDamage * reactionResult.damageMultiplier).round();
+
+    /// =========================
+    /// 6️⃣ DEAL DAMAGE
+    /// =========================
+    defender.takeDamage(finalDamage);
+
+    /// =========================
+    /// 7️⃣ COUNTER DAMAGE
+    /// =========================
     if (reactionResult.reflectedDamage > 0) {
       attacker.takeDamage(reactionResult.reflectedDamage);
     }
 
-    // =========================
-    // 6️⃣ Finalize
-    // =========================
+    /// =========================
+    /// 8️⃣ POST-HIT STATUS (HOOK)
+    /// =========================
+    _applyStatusEffects(
+      attacker: attacker,
+      defender: defender,
+      attackCard: attackCard,
+      isCombo: isCombo,
+      reactionResult: reactionResult,
+      finalDamage: finalDamage,
+    );
+
+    /// =========================
+    /// 9️⃣ MARK TURN STATE
+    /// =========================
     attacker.hasAttackedThisTurn = true;
+    if (isCombo) attacker.comboUsedThisTurn = true;
 
     return AttackResolution(
       attackCard: attackCard,
-      damageDealt: damage,
-      wasEvaded: false,
       isCombo: isCombo,
+      wasEvaded: reactionResult.attackNegated,
+      damageDealt: finalDamage,
       counterDamageTaken: reactionResult.reflectedDamage,
     );
   }
+
+  /// =========================
+  /// DAMAGE CALCULATION
+  /// =========================
+
+  int _calculateBaseDamage(AttackCard card) {
+    switch (card.speed) {
+      case AttackType.normal:
+        return 10;
+      case AttackType.heavy:
+        return 15;
+      case AttackType.swift:
+        return 8;
+    }
+  }
+
+  
+
+  /// =========================
+  /// STATUS EFFECT HOOK
+  /// =========================
+
+  void _applyStatusEffects({
+    required HeroModel attacker,
+    required HeroModel defender,
+    required AttackCard attackCard,
+    required bool isCombo,
+    required ReactionResult reactionResult,
+    required int finalDamage,
+  }) {
+    if (reactionResult.attackNegated || finalDamage <= 0) return;
+
+    _statusEffectEngine.applyOnHit(
+      attacker: attacker,
+      defender: defender,
+      isCombo: isCombo,
+      category: attackCard.category,
+    );
+  }
+
 }

@@ -1,3 +1,5 @@
+import 'package:heroes_battle/engine/status_engine.dart';
+
 import '../core/hero.dart';
 import '../core/card.dart';
 import '../core/attack_card.dart';
@@ -13,6 +15,7 @@ class TurnController {
   final List<CardModel> hand;
 
   final AttackEngine attackEngine = AttackEngine();
+  final StatusEffectEngine _statusEngine = StatusEffectEngine();
 
   TurnController({
     required this.drawPile,
@@ -71,6 +74,14 @@ class TurnController {
     discardPile.clear();
     drawPile.shuffle();
   }
+
+  void startHeroTurn(HeroModel hero) {
+  _statusEngine.processTurnStart(hero);
+
+  if (hero.statusEffects.any((s) => s.type == StatusType.stun)) {
+    hero.hasAttackedThisTurn = true; // skips action
+  }
+}
 
   /// =========================
   /// ACTION PHASE (ATTACK ENTRY)

@@ -43,6 +43,7 @@ enum BuffType {
   attackUp,    // +X damage
   defenseUp,   // reduce incoming damage
   swiftPlus,   // extra Swift combo allowance
+  guardPlus,   // flat damage reduction
 }
 
 enum ItemType {
@@ -61,6 +62,8 @@ enum ReactionType {
   evade,
   shield,
   counter,
+  parry,
+  deflect,
 }
 
 enum JobClass {

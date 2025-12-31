@@ -32,12 +32,28 @@ class BuffEngine {
   /// DAMAGE MODIFIERS
   /// =========================
 
-  static int modifyOutgoingDamage(HeroModel hero, int baseDamage) {
+  int modifyOutgoingDamage({
+    required HeroModel attacker,
+    required int baseDamage,
+    required bool isCombo,
+  }) {
     int modified = baseDamage;
 
-    for (final buff in hero.buffs) {
-      if (buff.type == BuffType.attackUp) {
-        modified += buff.value;
+    for (final buff in attacker.buffs) {
+      switch (buff.type) {
+        case BuffType.attackUp:
+          modified += buff.value;
+          break;
+
+        case BuffType.swiftPlus:
+          // Swift+ only applies when attack is a combo
+          if (isCombo) {
+            modified += buff.value;
+          }
+          break;
+
+        default:
+          break;
       }
     }
 
@@ -54,6 +70,34 @@ class BuffEngine {
     }
 
     return multiplier.clamp(0.1, 1.0);
+  }
+
+  /// =========================
+  /// INCOMING DAMAGE
+  /// =========================
+  int modifyIncomingDamage({
+    required HeroModel defender,
+    required int damage,
+  }) {
+    int modified = damage;
+
+    for (final buff in defender.buffs) {
+      switch (buff.type) {
+        case BuffType.defenseUp:
+          modified -= buff.value;
+          break;
+
+        case BuffType.guardPlus:
+          // Flat reduction, future-proof hook
+          modified -= buff.value;
+          break;
+
+        default:
+          break;
+      }
+    }
+
+    return modified < 0 ? 0 : modified;
   }
 
   /// =========================
