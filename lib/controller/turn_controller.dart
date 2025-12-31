@@ -1,153 +1,95 @@
-import 'package:heroes_battle/engine/status_engine.dart';
-
-import '../core/hero.dart';
-import '../core/card.dart';
-import '../core/attack_card.dart';
-import '../core/enums.dart';
-import '../engine/attack_engine.dart';
-import '../engine/swift_combo_engine.dart';
+import 'package:heroes_battle/core/card_model.dart';
+import 'package:heroes_battle/core/enums.dart';
+import 'package:heroes_battle/core/hero_model.dart';
+import 'package:heroes_battle/engine/attack_engine.dart';
+import 'package:heroes_battle/engine/status_effect_engine.dart';
+import 'package:heroes_battle/engine/swift_combo_engine.dart';
+import 'package:heroes_battle/model/combat_result.dart';
+import 'package:heroes_battle/model/turn_state.dart';
 
 class TurnController {
-  TurnPhase currentPhase = TurnPhase.draw;
+  final AttackEngine _attackEngine;
+  final StatusEffectEngine _statusEffectEngine;
+  final SwiftComboEngine _swiftComboEngine;
 
-  final List<CardModel> drawPile;
-  final List<CardModel> discardPile;
-  final List<CardModel> hand;
-
-  final AttackEngine attackEngine = AttackEngine();
-  final StatusEffectEngine _statusEngine = StatusEffectEngine();
+  late TurnState _turn;
 
   TurnController({
-    required this.drawPile,
-    required this.discardPile,
-    required this.hand,
-  });
+    required AttackEngine attackEngine,
+    required StatusEffectEngine statusEffectEngine,
+    required SwiftComboEngine swiftComboEngine,
+    required HeroModel startingHero,
+  })  : _attackEngine = attackEngine,
+        _statusEffectEngine = statusEffectEngine,
+        _swiftComboEngine = swiftComboEngine {
+    _turn = TurnState(activeHero: startingHero);
+  }
 
-  /// =========================
-  /// PHASE CONTROL
-  /// =========================
+  TurnState get state => _turn;
 
+  // =========================
+  // TURN START
+  // =========================
   void startTurn() {
-    currentPhase = TurnPhase.draw;
-  }
-
-  void nextPhase() {
-    switch (currentPhase) {
-      case TurnPhase.draw:
-        _handleDrawPhase();
-        currentPhase = TurnPhase.item;
-        break;
-
-      case TurnPhase.item:
-        currentPhase = TurnPhase.action;
-        break;
-
-      case TurnPhase.action:
-        currentPhase = TurnPhase.end;
-        break;
-
-      case TurnPhase.end:
-        _handleEndPhase();
-        currentPhase = TurnPhase.draw;
-        break;
+    if (_turn.phase != TurnPhase.start) {
+      throw Exception('Turn already started');
     }
+
+    _statusEffectEngine.processTurnStart(_turn.activeHero);
+    _swiftComboEngine.resetTurn(_turn.activeHero);
+
+    _turn.phase = TurnPhase.action;
   }
 
-  /// =========================
-  /// DRAW PHASE
-  /// =========================
-
-  void _handleDrawPhase({int drawCount = 1}) {
-    for (int i = 0; i < drawCount; i++) {
-      if (drawPile.isEmpty) {
-        _reshuffleDiscardIntoDraw();
-      }
-
-      if (drawPile.isNotEmpty) {
-        hand.add(drawPile.removeAt(0));
-      }
-    }
-  }
-
-  void _reshuffleDiscardIntoDraw() {
-    drawPile.addAll(discardPile);
-    discardPile.clear();
-    drawPile.shuffle();
-  }
-
-  void startHeroTurn(HeroModel hero) {
-  _statusEngine.processTurnStart(hero);
-
-  if (hero.statusEffects.any((s) => s.type == StatusType.stun)) {
-    hero.hasAttackedThisTurn = true; // skips action
-  }
-}
-
-  /// =========================
-  /// ACTION PHASE (ATTACK ENTRY)
-  /// =========================
-
-  void performAttack({
-    required HeroModel attacker,
-    required HeroModel defender,
-    required AttackCard attackCard,
+  // =========================
+  // ATTACK
+  // =========================
+  CombatResult performAttack({
+    required CardModel attackCard,
+    required List<HeroModel> targets,
+    bool isCombo = false,
+    Map<String, CardModel?> reactions = const {},
   }) {
-    if (currentPhase != TurnPhase.action) {
-      throw Exception('Not in Action phase');
+    if (_turn.phase != TurnPhase.action) {
+      throw Exception('Cannot attack outside action phase');
     }
 
-    final comboResult = SwiftComboEngine.validate(
-      hero: attacker,
-      attackCard: attackCard,
-    );
-
-    if (!comboResult.allowed) {
-      throw Exception(comboResult.reason);
+    if (_turn.hasAttacked && !isCombo) {
+      throw Exception('Already attacked this turn');
     }
 
-    attackEngine.performAttack(
-      attacker: attacker,
-      defender: defender,
+    final result = _attackEngine.resolveAttack(
+      attacker: _turn.activeHero,
       attackCard: attackCard,
-      isCombo: comboResult.isCombo,
+      defenders: targets,
+      isCombo: isCombo,
+      reactions: reactions,
     );
+
+    _turn.hasAttacked = true;
+    return result;
   }
 
-  /// =========================
-  /// END PHASE
-  /// =========================
+  // =========================
+  // TURN END
+  // =========================
+  void endTurn() {
+    if (_turn.phase != TurnPhase.action) {
+      throw Exception('Cannot end turn now');
+    }
 
-  void _handleEndPhase() {
-    discardPile.addAll(hand);
-    hand.clear();
+    _statusEffectEngine.processTurnEnd(_turn.activeHero);
+    _turn.phase = TurnPhase.end;
   }
 
-  /// =========================
-  /// TURN RESET
-  /// =========================
+  // =========================
+  // NEXT HERO
+  // =========================
+  void nextTurn(HeroModel nextHero) {
+    if (_turn.phase != TurnPhase.end) {
+      throw Exception('Turn not finished');
+    }
 
-  void resetHeroForNewTurn(HeroModel hero) {
-    hero
-      ..hasAttackedThisTurn = false
-      ..swiftUsedThisTurn = 0
-      ..comboUsedThisTurn = false;
-  }
-
-  /// Whether an item may be used in the current phase and there is at least
-  /// one item card in hand.
-  bool canUseItem() {
-    if (currentPhase != TurnPhase.item) return false;
-    return hand.any((c) => c.cardType == CardType.item);
-  }
-
-  /// Whether the provided hero can perform an attack in the current phase.
-  /// Checks phase, alive state, and that the hero hasn't already attacked.
-  bool canAttack(HeroModel hero) {
-    if (currentPhase != TurnPhase.action) return false;
-    if (!hero.canAct) return false;
-    if (hero.hasAttackedThisTurn) return false;
-    // Disallow attacking while stunned
-    if (hero.statusEffects.any((s) => s.type == StatusType.stun)) return false;
-    return true;
+    _turn.resetForNewTurn(nextHero);
   }
 }

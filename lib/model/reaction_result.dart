@@ -1,12 +1,19 @@
 class ReactionResult {
-  bool attackNegated;
-  double damageMultiplier;
-  int reflectedDamage;
-  
+  final bool attackNegated;
+  final double damageMultiplier;
+  final int reflectedDamage;
 
-  ReactionResult({
-    this.attackNegated = false,
-    this.damageMultiplier = 1.0,
-    this.reflectedDamage = 0,
+  const ReactionResult({
+    required this.attackNegated,
+    required this.damageMultiplier,
+    required this.reflectedDamage,
   });
+
+  factory ReactionResult.none() {
+    return const ReactionResult(
+      attackNegated: false,
+      damageMultiplier: 1.0,
+      reflectedDamage: 0,
+    );
+  }
 }

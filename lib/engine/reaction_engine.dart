@@ -1,87 +1,88 @@
-import '../core/hero.dart';
-import '../core/attack_card.dart';
-import '../core/enums.dart';
 import '../model/reaction_result.dart';
+import '../core/card_model.dart';
+import '../core/hero_model.dart';
+import '../core/enums.dart';
+
 
 class ReactionEngine {
-  ReactionResult resolve({
+  ReactionResult resolveReaction({
+    required CardModel attackCard,
+    required HeroModel attacker,
     required HeroModel defender,
-    required AttackCard attackCard,
-    required int baseDamage,
-    ReactionType? reaction,
-    bool hasCounter = false,
+    CardModel? reactionCard,
   }) {
-    final result = ReactionResult();
-
-    /// =========================
-    /// JOB CLASS VALIDATION
-    /// =========================
-
-    if (reaction != null && !_canUseReaction(defender.jobClass, reaction)) {
-      return result; // illegal reaction ignored
+    // No reaction played
+    if (reactionCard == null) {
+      return ReactionResult.none();
     }
 
-    /// =========================
-    /// COUNTER (BASE DAMAGE)
-    /// =========================
-    if (reaction == ReactionType.counter || hasCounter) {
-      if (_canUseReaction(defender.jobClass, ReactionType.counter)) {
-        result.reflectedDamage = (baseDamage * 0.5).round();
-      }
+    // Validate reaction card
+    if (reactionCard.cardType != CardType.reaction ||
+        reactionCard.reactionType == null) {
+      return ReactionResult.none();
     }
 
-    /// =========================
-    /// EVADE (NEGATES ALL TYPES)
-    /// =========================
-    if (reaction == ReactionType.evade) {
-      result.attackNegated = true;
-      return result; // Evade overrides damage
+    final reactionType = reactionCard.reactionType!;
+
+    // Validate job class permission
+    if (!defender.jobClass.allowedReactions.contains(reactionType)) {
+      return ReactionResult.none();
     }
 
-    /// =========================
-    /// SHIELD (MAGIC ONLY)
-    /// =========================
-    if (reaction == ReactionType.shield &&
-        attackCard.category == AttackCategory.magic) {
-      result.attackNegated = true;
-      return result;
-    }
+    bool attackNegated = false;
+    double damageMultiplier = 1.0;
+    int reflectedDamage = 0;
 
-    /// =========================
-    /// BLOCK (PHYSICAL ONLY)
-    /// =========================
-    if (reaction == ReactionType.block &&
-        _isPhysical(attackCard.category)) {
-      result.damageMultiplier = 0.5;
-    }
+    final isPhysical = attackCard.attackCategory == AttackCategory.melee ||
+        attackCard.attackCategory == AttackCategory.range;
 
-    return result;
-  }
+    final isMagic = attackCard.attackCategory == AttackCategory.magic;
 
-  /// =========================
-  /// VALIDATION HELPERS
-  /// =========================
-
-  bool _canUseReaction(JobClass job, ReactionType reaction) {
-    switch (reaction) {
-      case ReactionType.block:
-      case ReactionType.parry:
-        return job == JobClass.melee || job == JobClass.ranged;
-
+    switch (reactionType) {
       case ReactionType.evade:
-        return true;
+        // Evade negates ANY attack (including Area, per hero)
+        attackNegated = true;
+        break;
 
-      case ReactionType.counter:
-        return job == JobClass.melee;
+      case ReactionType.block:
+        if (isPhysical) {
+          damageMultiplier = 0.5;
+        }
+        break;
+
+      case ReactionType.parry:
+        if (isPhysical) {
+          attackNegated = true;
+        }
+        break;
 
       case ReactionType.shield:
+        if (isMagic) {
+          attackNegated = true;
+        }
+        break;
+
       case ReactionType.deflect:
-        return job == JobClass.mage || job == JobClass.support;
+        if (isMagic) {
+          damageMultiplier = 0.5;
+          reflectedDamage = _calculateCounter(attackCard);
+        }
+        break;
+
+      case ReactionType.counter:
+        reflectedDamage = _calculateCounter(attackCard);
+        break;
     }
+
+    return ReactionResult(
+      attackNegated: attackNegated,
+      damageMultiplier: damageMultiplier,
+      reflectedDamage: reflectedDamage,
+    );
   }
 
-  bool _isPhysical(AttackCategory category) {
-    return category == AttackCategory.melee ||
-        category == AttackCategory.range;
+  int _calculateCounter(CardModel attackCard) {
+    final base = attackCard.baseDamage ?? 0;
+    return (base * 0.5).round();
   }
 }

@@ -1,71 +1,69 @@
-import '../core/hero.dart';
-import '../core/attack_card.dart';
+import '../core/card_model.dart';
+import '../core/hero_model.dart';
 import '../core/enums.dart';
-
-class SwiftComboResult {
-  final bool allowed;
-  final bool isCombo;
-  final String? reason;
-
-  const SwiftComboResult({
-    required this.allowed,
-    required this.isCombo,
-    this.reason,
-  });
-}
+import '../model/swift_combo_state.dart';
 
 class SwiftComboEngine {
-  static SwiftComboResult validate({
+  final Map<String, SwiftComboState> _states = {};
+
+  /// =========================
+  /// VALIDATE ATTACK
+  /// =========================
+  bool canExecuteAttack({
     required HeroModel hero,
-    required AttackCard attackCard,
+    required CardModel attackCard,
+    required bool isCombo,
   }) {
-    // ❌ Already attacked
-    if (hero.hasAttackedThisTurn) {
-      return const SwiftComboResult(
-        allowed: false,
-        isCombo: false,
-        reason: 'Hero has already attacked this turn',
-      );
+    final state = _stateFor(hero);
+
+    // Only attack cards
+    if (attackCard.cardType != CardType.attack) return false;
+
+    // First attack of the turn
+    if (!state.swiftUsed && !state.comboConsumed) {
+      return true;
     }
 
-    // =========================
-    // Swift logic
-    // =========================
-    if (attackCard.speed == AttackType.swift) {
-      // Swift usage tracking
-      hero.swiftUsedThisTurn++;
-
-      // First Swift → may combo
-      if (hero.swiftUsedThisTurn == 1 &&
-          !hero.comboUsedThisTurn) {
-        return const SwiftComboResult(
-          allowed: true,
-          isCombo: false,
-        );
-      }
-
-      // Second Swift → allowed but NO combo
-      return const SwiftComboResult(
-        allowed: true,
-        isCombo: false,
-      );
+    // Combo attempt
+    if (isCombo) {
+      if (state.comboConsumed) return false;
+      if (attackCard.attackType != AttackType.swift) return false;
+      return true;
     }
 
-    // =========================
-    // Normal / Heavy logic
-    // =========================
-    if (!hero.comboUsedThisTurn) {
-      hero.comboUsedThisTurn = true;
-      return const SwiftComboResult(
-        allowed: true,
-        isCombo: true,
-      );
+    return false;
+  }
+
+  /// =========================
+  /// MARK ATTACK RESOLVED
+  /// =========================
+  void markAttackResolved(
+    HeroModel hero,
+    CardModel attackCard,
+    bool isCombo,
+  ) {
+    final state = _stateFor(hero);
+
+    if (attackCard.attackType == AttackType.swift) {
+      state.swiftUsed = true;
     }
 
-    return const SwiftComboResult(
-      allowed: false,
-      isCombo: false,
-      reason: 'Combo already used this turn',
-    );
+    if (isCombo) {
+      state.comboConsumed = true;
+    }
+  }
+
+  /// =========================
+  /// TURN RESET
+  /// =========================
+  void resetForNewTurn(HeroModel hero) {
+    _stateFor(hero).reset();
+  }
+
+  /// =========================
+  /// INTERNAL
+  /// =========================
+  SwiftComboState _stateFor(HeroModel hero) {
+    return _states.putIfAbsent(hero.id, () => SwiftComboState());
   }
 }

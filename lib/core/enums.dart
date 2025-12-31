@@ -1,7 +1,7 @@
 enum CardType {
   attack,
-  buff,
   reaction,
+  buff,
   item,
 }
 
@@ -23,27 +23,26 @@ enum TargetType {
   area,
 }
 
-enum StatusType {
-  burn,      // HP loss each turn
-  bleed,    // HP loss when acting
-  stun,     // Skip action phase
-  shielded, // Temporary damage reduction
-  poison,   // HP loss each turn, cannot be cured
-  
-}
-
-enum TurnPhase {
-  draw,
-  item,
-  action,
-  end,
+enum ReactionType {
+  block,
+  parry,
+  evade,
+  counter,
+  shield,
+  deflect,
 }
 
 enum BuffType {
-  attackUp,    // +X damage
-  defenseUp,   // reduce incoming damage
-  swiftPlus,   // extra Swift combo allowance
-  guardPlus,   // flat damage reduction
+  attackUp,
+  defenseUp,
+  swiftPlus,
+}
+
+enum StatusType {
+  stun,
+  bleed,
+  burn,
+  shielded,
 }
 
 enum ItemType {
@@ -51,25 +50,16 @@ enum ItemType {
   equipment,
 }
 
-enum ItemEffectType {
-  heal,
-  cure,
-  buff,
-}
-
-enum ReactionType {
-  block,
-  evade,
-  shield,
-  counter,
-  parry,
-  deflect,
-}
-
-enum JobClass {
+enum JobRole {
   melee,
-  ranged,
-  mage,
+  range,
+  magic,
   support,
+}
+
+enum TurnPhase {
+  start,
+  action,
+  end,
 }
 
