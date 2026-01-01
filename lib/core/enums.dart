@@ -43,6 +43,7 @@ enum StatusType {
   bleed,
   burn,
   shielded,
+  poison,
 }
 
 enum ItemType {
@@ -59,6 +60,8 @@ enum JobRole {
 
 enum TurnPhase {
   start,
+  draw,
+  main,
   action,
   end,
 }

@@ -2,10 +2,10 @@ import 'enums.dart';
 
 class StatusEffect {
   final StatusType type;
-  int remainingTurns;
+  int duration;
 
   StatusEffect({
     required this.type,
-    required this.remainingTurns,
+    required this.duration,
   });
 }

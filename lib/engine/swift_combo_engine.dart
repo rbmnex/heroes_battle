@@ -57,6 +57,8 @@ class SwiftComboEngine {
   /// TURN RESET
   /// =========================
   void resetForNewTurn(HeroModel hero) {
+    hero.swiftUsedThisTurn = false;
+    hero.comboUsedThisTurn = false;
     _stateFor(hero).reset();
   }
 

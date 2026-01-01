@@ -1,173 +1,122 @@
 import '../core/card_model.dart';
 import '../core/hero_model.dart';
+import '../core/status_effect.dart';
 import '../core/enums.dart';
-
-import 'reaction_engine.dart';
-import 'buff_engine.dart';
-import 'status_effect_engine.dart';
-import 'swift_combo_engine.dart';
 import '../model/combat_result.dart';
-import '../model/reaction_result.dart';
+import 'buff_engine.dart';
+import 'reaction_engine.dart';
+import 'status_effect_engine.dart';
 
 class AttackEngine {
-  final ReactionEngine _reactionEngine;
-  final BuffEngine _buffEngine;
-  final StatusEffectEngine _statusEffectEngine;
-  final SwiftComboEngine _swiftComboEngine;
+  final ReactionEngine reactionEngine;
+  final BuffEngine buffEngine;
+  final StatusEffectEngine statusEffectEngine;
 
   AttackEngine({
-    required ReactionEngine reactionEngine,
-    required BuffEngine buffEngine,
-    required StatusEffectEngine statusEffectEngine,
-    required SwiftComboEngine swiftComboEngine,
-  })  : _reactionEngine = reactionEngine,
-        _buffEngine = buffEngine,
-        _statusEffectEngine = statusEffectEngine,
-        _swiftComboEngine = swiftComboEngine;
+    required this.reactionEngine,
+    required this.buffEngine,
+    required this.statusEffectEngine,
+  });
 
   /// =========================
-  /// MAIN ENTRY
+  /// PUBLIC ENTRY POINT
   /// =========================
-  CombatResult resolveAttack({
+
+  CombatResult executeAttack({
     required HeroModel attacker,
-    required CardModel attackCard,
     required List<HeroModel> defenders,
-    required bool isCombo,
-    Map<String, CardModel?> reactions = const {},
+    required CardModel attackCard,
+    bool isSwiftCombo = false,
+    bool isComboAttack = false,
   }) {
     _validateAttack(attacker, attackCard);
 
-    // Swift legality
-    if (!_swiftComboEngine.canExecuteAttack(
-      hero: attacker,
-      attackCard: attackCard,
-      isCombo: isCombo,
-    )) {
-      throw Exception('Illegal Swift / Combo usage');
-    }
+    final Map<HeroModel, int> damageMap = {};
+    final Map<HeroModel, List<StatusEffect>> statusMap = {};
+    final List<HeroModel> evadedTargets = [];
 
-    final baseDamage = attackCard.baseDamage ?? 0;
-    final targetResults = <TargetResult>[];
     int totalCounterDamage = 0;
 
     for (final defender in defenders) {
       if (defender.isDefeated) continue;
 
-      // =========================
-      // 1️⃣ OUTGOING BUFFS
-      // =========================
-      int damage =
-          _buffEngine.modifyOutgoingDamage(attacker, baseDamage);
+      // 1️⃣ Base damage
+      int baseDamage = attackCard.baseDamage;
 
-      // =========================
-      // 2️⃣ REACTION
-      // =========================
-      final reactionCard = reactions[defender.id];
-
-      final ReactionResult reaction = _reactionEngine.resolveReaction(
-        attackCard: attackCard,
-        attacker: attacker,
-        defender: defender,
-        reactionCard: reactionCard,
+      // 2️⃣ Attacker buffs
+      baseDamage = buffEngine.modifyOutgoingDamage(
+        attacker,
+        baseDamage,
       );
 
-      totalCounterDamage += reaction.reflectedDamage;
+      // 3️⃣ Defender reaction
+      final reactionResult = reactionEngine.resolveReaction(
+        attackCard: attackCard,
+        baseDamage: baseDamage,
+        defender: defender,
+      );
 
-      // =========================
-      // 3️⃣ NEGATION CHECK
-      // =========================
-      if (reaction.attackNegated) {
-        targetResults.add(
-          TargetResult(
-            defender: defender,
-            damageTaken: 0,
-            wasNegated: true,
-          ),
-        );
+      // Counter damage is based on BASE damage
+      totalCounterDamage += reactionResult.counterDamage;
+
+      // Evade / negate
+      if (reactionResult.attackNegated) {
+        evadedTargets.add(defender);
+        damageMap[defender] = 0;
         continue;
       }
 
-      // =========================
-      // 4️⃣ INCOMING BUFFS
-      // =========================
-      damage =
-          _buffEngine.modifyIncomingDamage(defender, damage);
+      // 4️⃣ Final damage
+      int finalDamage =
+          (baseDamage * reactionResult.damageMultiplier).round();
 
-      // =========================
-      // 5️⃣ REACTION MODIFIER
-      // =========================
-      damage = (damage * reaction.damageMultiplier).round();
+      finalDamage = finalDamage.clamp(0, defender.currentHp);
+      defender.currentHp -= finalDamage;
+      damageMap[defender] = finalDamage;
 
-      // =========================
-      // 6️⃣ CLAMP
-      // =========================
-      damage = damage.clamp(0, 9999);
-
-      // =========================
-      // 7️⃣ APPLY DAMAGE
-      // =========================
-      defender.currentHp -= damage;
-
-      // =========================
-      // 8️⃣ STATUS EFFECTS
-      // =========================
-      if (damage > 0) {
-        _statusEffectEngine.applyOnHit(
-          attacker: attacker,
-          defender: defender,
-          attackCard: attackCard,
-          isCombo: isCombo,
-        );
-      }
-
-      targetResults.add(
-        TargetResult(
-          defender: defender,
-          damageTaken: damage,
-          wasNegated: false,
-        ),
+      // 5️⃣ Status effects
+      final appliedStatuses = statusEffectEngine.applyOnHit(
+        attacker: attacker,
+        defender: defender,
+        attackCategory: attackCard.attackCategory!,
+        isCombo: isComboAttack,
       );
+
+      if (appliedStatuses.isNotEmpty) {
+        statusMap[defender] = appliedStatuses;
+      }
     }
 
-    // =========================
-    // 9️⃣ COUNTER DAMAGE
-    // =========================
+    // 6️⃣ Apply counter damage to attacker
     if (totalCounterDamage > 0) {
-      attacker.currentHp -= totalCounterDamage;
+      attacker.currentHp -= totalCounterDamage.clamp(0, attacker.currentHp);
     }
 
-    // =========================
-    // 🔟 SWIFT STATE UPDATE
-    // =========================
-    _swiftComboEngine.markAttackResolved(
-      attacker,
-      attackCard,
-      isCombo,
-    );
+    attacker.hasAttackedThisTurn = true;
 
     return CombatResult(
-      attackCard: attackCard,
-      isCombo: isCombo,
-      targets: targetResults,
-      totalCounterDamage: totalCounterDamage,
+      attacker: attacker,
+      defenders: defenders,
+      damageDealt: damageMap,
+      counterDamageTaken: totalCounterDamage,
+      evadedTargets: evadedTargets,
+      appliedStatusEffects: statusMap,
+      wasSwiftCombo: isSwiftCombo,
+      wasComboAttack: isComboAttack,
     );
   }
 
   /// =========================
   /// VALIDATION
   /// =========================
+
   void _validateAttack(HeroModel attacker, CardModel card) {
     if (card.cardType != CardType.attack) {
-      throw Exception('Card is not an attack');
+      throw Exception('Card is not an attack card');
     }
 
-    if (!attacker.jobClass.allowedAttackCategories
-        .contains(card.attackCategory)) {
-      throw Exception('JobClass cannot use this attack');
-    }
-
-    if (attacker.isDefeated) {
-      throw Exception('Defeated hero cannot attack');
+    if (attacker.hasAttackedThisTurn) {
+      throw Exception('${attacker.name} has already attacked this turn');
     }
   }
 }

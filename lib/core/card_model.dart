@@ -1,25 +1,38 @@
 import 'enums.dart';
 
 class CardModel {
+
+  /// =========================
+  /// IDENTITY
+  /// =========================
   final String id;
   final String name;
   final CardType cardType;
 
-  // Attack
+  /// =========================
+  /// ATTACK PROPERTIES
+  /// =========================
   final AttackCategory? attackCategory;
   final AttackType? attackType;
   final TargetType? targetType;
-  final int? baseDamage;
 
-  // Reaction
+  /// Base damage BEFORE buffs / reactions
+  final int baseDamage;
+
+  /// =========================
+  /// REACTION PROPERTIES
+  /// =========================
   final ReactionType? reactionType;
 
   // Buff / Status
-  final BuffType? buffType;
-  final StatusType? statusType;
-  final int? value;
+  // final BuffType? buffType;
+  // final StatusType? statusType;
+  // final int? value;
 
-  // Item
+   /// =========================
+  /// ITEM PROPERTIES
+  /// =========================
+
   final ItemType? itemType;
 
   const CardModel({
@@ -29,11 +42,11 @@ class CardModel {
     this.attackCategory,
     this.attackType,
     this.targetType,
-    this.baseDamage,
+    this.baseDamage = 0,
     this.reactionType,
-    this.buffType,
-    this.statusType,
-    this.value,
     this.itemType,
+    // this.buffType,
+    // this.statusType,
+    // this.value,
   });
 }

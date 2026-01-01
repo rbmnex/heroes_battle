@@ -1,88 +1,76 @@
-import '../model/reaction_result.dart';
 import '../core/card_model.dart';
 import '../core/hero_model.dart';
 import '../core/enums.dart';
-
+import '../core/job_class.dart';
+import '../model/reaction_result.dart';
 
 class ReactionEngine {
   ReactionResult resolveReaction({
     required CardModel attackCard,
-    required HeroModel attacker,
     required HeroModel defender,
-    CardModel? reactionCard,
+    required int baseDamage,
   }) {
-    // No reaction played
-    if (reactionCard == null) {
-      return ReactionResult.none();
+    // No reaction available
+    final reaction = defender.activeReaction;
+    if (reaction == null) {
+      return const ReactionResult();
     }
 
-    // Validate reaction card
-    if (reactionCard.cardType != CardType.reaction ||
-        reactionCard.reactionType == null) {
-      return ReactionResult.none();
+    // JobClass validation
+    if (!_canUseReaction(defender.jobClass, reaction.reactionType!)) {
+      return const ReactionResult();
     }
 
-    final reactionType = reactionCard.reactionType!;
-
-    // Validate job class permission
-    if (!defender.jobClass.allowedReactions.contains(reactionType)) {
-      return ReactionResult.none();
-    }
-
-    bool attackNegated = false;
-    double damageMultiplier = 1.0;
-    int reflectedDamage = 0;
-
-    final isPhysical = attackCard.attackCategory == AttackCategory.melee ||
-        attackCard.attackCategory == AttackCategory.range;
-
-    final isMagic = attackCard.attackCategory == AttackCategory.magic;
-
-    switch (reactionType) {
+    switch (reaction.reactionType!) {
       case ReactionType.evade:
-        // Evade negates ANY attack (including Area, per hero)
-        attackNegated = true;
-        break;
+      case ReactionType.parry:
+        return const ReactionResult(
+          attackNegated: true,
+        );
 
       case ReactionType.block:
-        if (isPhysical) {
-          damageMultiplier = 0.5;
-        }
-        break;
-
-      case ReactionType.parry:
-        if (isPhysical) {
-          attackNegated = true;
-        }
-        break;
-
-      case ReactionType.shield:
-        if (isMagic) {
-          attackNegated = true;
-        }
-        break;
-
-      case ReactionType.deflect:
-        if (isMagic) {
-          damageMultiplier = 0.5;
-          reflectedDamage = _calculateCounter(attackCard);
+        if (_isPhysical(attackCard)) {
+          return const ReactionResult(
+            damageMultiplier: 0.5,
+          );
         }
         break;
 
       case ReactionType.counter:
-        reflectedDamage = _calculateCounter(attackCard);
+        return ReactionResult(
+          counterDamage: (baseDamage * 0.5).round(),
+        );
+
+      case ReactionType.shield:
+        if (attackCard.attackCategory == AttackCategory.magic) {
+          return const ReactionResult(
+            attackNegated: true,
+          );
+        }
+        break;
+
+      case ReactionType.deflect:
+        if (attackCard.attackCategory == AttackCategory.magic) {
+          return ReactionResult(
+            reflectedDamage: (baseDamage * 0.5).round(),
+          );
+        }
         break;
     }
 
-    return ReactionResult(
-      attackNegated: attackNegated,
-      damageMultiplier: damageMultiplier,
-      reflectedDamage: reflectedDamage,
-    );
+    return const ReactionResult();
   }
 
-  int _calculateCounter(CardModel attackCard) {
-    final base = attackCard.baseDamage ?? 0;
-    return (base * 0.5).round();
+  /// =========================
+  /// HELPERS
+  /// =========================
+
+  bool _isPhysical(CardModel card) {
+    return card.attackCategory == AttackCategory.melee ||
+        card.attackCategory == AttackCategory.range;
+  }
+
+  bool _canUseReaction(JobClass job, ReactionType type) {
+    return job.allowedReactions.contains(type);
   }
 }

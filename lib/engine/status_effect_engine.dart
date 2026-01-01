@@ -53,6 +53,7 @@ class StatusEffectEngine {
     for (final status in hero.statusEffects) {
       switch (status.type) {
         case StatusType.bleed:
+        case StatusType.poison:
           hero.currentHp -= 1;
           break;
 
@@ -66,14 +67,31 @@ class StatusEffectEngine {
           break;
       }
 
-      status.remainingTurns--;
+      status.duration--;
 
-      if (status.remainingTurns <= 0) {
+      if (status.duration <= 0) {
         expired.add(status);
       }
     }
 
     hero.statusEffects.removeWhere(expired.contains);
+  }
+
+  void onTurnStart(HeroModel hero) {
+    for (final status in hero.statusEffects) {
+      if (status.type == StatusType.poison ||
+          status.type == StatusType.bleed ||
+          status.type == StatusType.burn) {
+        hero.currentHp -= status.value;
+      }
+    }
+  }
+
+  void onTurnEnd(HeroModel hero) {
+    hero.statusEffects.removeWhere((s) {
+      s.duration--;
+      return s.duration <= 0;
+    });
   }
 
   /// =========================
@@ -94,7 +112,7 @@ class StatusEffectEngine {
     hero.statusEffects.add(
       StatusEffect(
         type: type,
-        remainingTurns: duration,
+        duration: duration,
       ),
     );
   }
