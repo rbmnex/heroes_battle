@@ -74,20 +74,7 @@ class AttackEngine {
       defender.currentHp -= finalDamage;
       damageMap[defender] = finalDamage;
 
-      // 5️⃣ Status effects
-      final appliedStatuses = statusEffectEngine.applyOnHit(
-        attacker: attacker,
-        defender: defender,
-        attackCategory: attackCard.attackCategory!,
-        isCombo: isComboAttack,
-      );
-
-      if (appliedStatuses.isNotEmpty) {
-        statusMap[defender] = appliedStatuses;
-      }
-    }
-
-    // 6️⃣ Apply counter damage to attacker
+    // 5️⃣ Apply counter damage to attacker
     if (totalCounterDamage > 0) {
       attacker.currentHp -= totalCounterDamage.clamp(0, attacker.currentHp);
     }

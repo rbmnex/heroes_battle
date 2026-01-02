@@ -44,6 +44,8 @@ enum StatusType {
   burn,
   shielded,
   poison,
+  freeze,
+  silence,
 }
 
 enum ItemType {

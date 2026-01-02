@@ -1,117 +1,123 @@
-import '../core/hero_model.dart';
 import '../core/enums.dart';
+import '../core/hero_model.dart';
 import '../core/status_effect.dart';
-import '../core/card_model.dart';
 
 class StatusEffectEngine {
   /// =========================
-  /// APPLY ON HIT
-  /// =========================
-  void applyOnHit({
-    required HeroModel attacker,
-    required HeroModel defender,
-    required CardModel attackCard,
-    required bool isCombo,
-  }) {
-    // Status effects only come from attack cards
-    if (attackCard.statusType == null) return;
-
-    final status = attackCard.statusType!;
-
-    // Example rules (expandable)
-    switch (status) {
-      case StatusType.bleed:
-        if (attackCard.attackCategory == AttackCategory.melee) {
-          _applyStatus(defender, status, 2);
-        }
-        break;
-
-      case StatusType.burn:
-        if (attackCard.attackCategory == AttackCategory.magic) {
-          _applyStatus(defender, status, 2);
-        }
-        break;
-
-      case StatusType.stun:
-        if (!isCombo) {
-          _applyStatus(defender, status, 1);
-        }
-        break;
-
-      case StatusType.shielded:
-        _applyStatus(defender, status, 1);
-        break;
-    }
-  }
-
-  /// =========================
   /// TURN START
   /// =========================
+
   void processTurnStart(HeroModel hero) {
-    final expired = <StatusEffect>[];
-
-    for (final status in hero.statusEffects) {
-      switch (status.type) {
-        case StatusType.bleed:
-        case StatusType.poison:
-          hero.currentHp -= 1;
-          break;
-
+    for (final effect in hero.statusEffects) {
+      switch (effect.type) {
         case StatusType.burn:
-          hero.currentHp -= 2;
+        case StatusType.poison:
+        case StatusType.bleed:
+          _applyDot(hero, effect.value);
           break;
 
+        case StatusType.freeze:
         case StatusType.stun:
-        case StatusType.shielded:
-          // No damage on turn start
+          // Handled via query flags
           break;
-      }
 
-      status.duration--;
+        case StatusType.silence:
+          // Handled via query flags  
+          break;
 
-      if (status.duration <= 0) {
-        expired.add(status);
-      }
-    }
+        case StatusType.shielded:
+          // No action needed at turn start
+          break;
 
-    hero.statusEffects.removeWhere(expired.contains);
-  }
-
-  void onTurnStart(HeroModel hero) {
-    for (final status in hero.statusEffects) {
-      if (status.type == StatusType.poison ||
-          status.type == StatusType.bleed ||
-          status.type == StatusType.burn) {
-        hero.currentHp -= status.value;
       }
     }
   }
 
-  void onTurnEnd(HeroModel hero) {
-    hero.statusEffects.removeWhere((s) {
-      s.duration--;
-      return s.duration <= 0;
+  /// =========================
+  /// TURN END
+  /// =========================
+
+  void processTurnEnd(HeroModel hero) {
+    hero.statusEffects.removeWhere((effect) {
+      effect.duration -= 1;
+      return effect.duration <= 0;
     });
   }
 
   /// =========================
-  /// APPLY STATUS (PRIVATE)
+  /// QUERIES (FLAGS)
   /// =========================
-  void _applyStatus(
+
+  bool isStunned(HeroModel hero) {
+    return hero.statusEffects.any(
+      (e) => e.type == StatusType.stun,
+    );
+  }
+
+  bool isFrozen(HeroModel hero) {
+    return hero.statusEffects.any(
+      (e) => e.type == StatusType.freeze,
+    );
+  }
+
+  bool isSilenced(HeroModel hero) {
+    return hero.statusEffects.any(
+      (e) => e.type == StatusType.silence,
+    );
+  }
+
+  /// =========================
+  /// INTERNAL
+  /// =========================
+
+  void _applyDot(HeroModel hero, int damage) {
+    hero.currentHp =
+        (hero.currentHp - damage).clamp(0, hero.maxHp);
+  }
+
+  // void applyOnHit({
+  //   required HeroModel attacker,
+  //   required HeroModel defender,
+  //   required AttackCardCategory category,
+  //   required bool isCombo,
+  // }) {
+  //   // Example rules — deterministic, data-driven
+
+  //   switch (category) {
+  //     case AttackCardCategory.fire:
+  //       _addStatus(defender, StatusEffectType.burn, 2, 3);
+  //       break;
+
+  //     case AttackCardCategory.poison:
+  //       _addStatus(defender, StatusEffectType.poison, 1, 4);
+  //       break;
+
+  //     case AttackCardCategory.ice:
+  //       if (isCombo) {
+  //         _addStatus(defender, StatusEffectType.freeze, 0, 1);
+  //       }
+  //       break;
+
+  //     case AttackCardCategory.physical:
+  //       // no status
+  //       break;
+  //   }
+  // }
+
+  /// =========================
+  /// INTERNAL
+  /// =========================
+
+  void _addStatus(
     HeroModel hero,
     StatusType type,
+    int value,
     int duration,
   ) {
-    // Prevent stacking same status
-    final existing = hero.statusEffects
-        .where((s) => s.type == type)
-        .toList();
-
-    if (existing.isNotEmpty) return;
-
     hero.statusEffects.add(
       StatusEffect(
         type: type,
+        value: value,
         duration: duration,
       ),
     );

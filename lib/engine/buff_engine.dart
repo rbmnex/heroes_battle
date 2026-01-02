@@ -5,23 +5,13 @@ class BuffEngine {
   /// =========================
   /// OUTGOING DAMAGE
   /// =========================
-  int modifyOutgoingDamage(HeroModel hero, int baseDamage) {
+
+  int modifyOutgoingDamage(HeroModel attacker, int baseDamage) {
     int modified = baseDamage;
 
-    for (final buff in hero.buffs) {
-      switch (buff.type) {
-        case BuffType.attackUp:
-          modified += buff.value;
-          break;
-
-        case BuffType.swiftPlus:
-          // SwiftPlus does NOT increase damage
-          // It is validated in SwiftComboEngine
-          break;
-
-        case BuffType.defenseUp:
-          // Not applicable for outgoing damage
-          break;
+    for (final buff in attacker.buffs) {
+      if (buff.type == BuffType.attackUp) {
+        modified += buff.value;
       }
     }
 
@@ -31,22 +21,24 @@ class BuffEngine {
   /// =========================
   /// INCOMING DAMAGE
   /// =========================
-  int modifyIncomingDamage(HeroModel hero, int incomingDamage) {
-    int modified = incomingDamage;
 
-    for (final buff in hero.buffs) {
-      switch (buff.type) {
-        case BuffType.defenseUp:
-          modified -= buff.value;
-          break;
+  int modifyIncomingDamage(HeroModel defender, int damage) {
+    int modified = damage;
 
-        case BuffType.attackUp:
-        case BuffType.swiftPlus:
-          // Not applicable for incoming damage
-          break;
+    for (final buff in defender.buffs) {
+      if (buff.type == BuffType.defenseUp) {
+        modified -= buff.value;
       }
     }
 
     return modified.clamp(0, 9999);
+  }
+
+  /// =========================
+  /// FLAGS (NON-MATH)
+  /// =========================
+
+  bool hasSwiftPlus(HeroModel hero) {
+    return hero.buffs.any((b) => b.type == BuffType.swiftPlus);
   }
 }
